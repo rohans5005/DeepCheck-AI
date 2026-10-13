@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DeepCheck — AI Semantic Plagiarism & Attribution Engine</title>
+  <meta name="description" content="Production-grade AI semantic plagiarism detection system powered by SBERT Transformer embeddings, FAISS vector index, and cross-attention sentence alignment.">
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome Icons CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+  <!-- App Stylesheet -->
+  <link rel="stylesheet" href="./css/style.css">
+
+  <!-- External CDN Libraries: Chart.js & jsPDF -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body>
+  <!-- Animated Mesh Background Canvas -->
+  <canvas id="mesh-bg-canvas" aria-hidden="true"></canvas>
+
+  <!-- App Header & Navigation -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand-logo" id="brand-logo" role="button" tabindex="0" title="Return to Main Check View">
+        <div class="logo-icon-wrap">
+          <i class="fa-solid fa-shield-halved logo-icon"></i>
+        </div>
+        <div class="brand-text">
+          <span class="brand-name">DeepCheck</span>
+          <span class="brand-badge">AI Engine v1.0</span>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="nav-tabs" role="tablist" aria-label="Main Navigation">
+        <button class="nav-tab active" data-view="check" role="tab" aria-selected="true" id="tab-check">
+          <i class="fa-solid fa-file-shield"></i> <span>Check</span>
+        </button>
+        <button class="nav-tab" data-view="compare" role="tab" aria-selected="false" id="tab-compare">
+          <i class="fa-solid fa-code-compare"></i> <span>Compare</span>
+        </button>
+        <button class="nav-tab" data-view="corpus" role="tab" aria-selected="false" id="tab-corpus">
+          <i class="fa-solid fa-database"></i> <span>Corpus</span>
+        </button>
+        <button class="nav-tab" data-view="benchmarks" role="tab" aria-selected="false" id="tab-benchmarks">
+          <i class="fa-solid fa-chart-column"></i> <span>Benchmarks</span>
+        </button>
+        <button class="nav-tab" data-view="training" role="tab" aria-selected="false" id="tab-training">
+          <i class="fa-solid fa-network-wired"></i> <span>Training</span>
+        </button>
+        <button class="nav-tab" data-view="history" role="tab" aria-selected="false" id="tab-history">
+          <i class="fa-solid fa-clock-rotate-left"></i> <span>History</span>
+        </button>
+        <button class="nav-tab" data-view="settings" role="tab" aria-selected="false" id="tab-settings">
+          <i class="fa-solid fa-sliders"></i> <span>Settings</span>
+        </button>
+      </nav>
+
+      <!-- Right Header Actions -->
+      <div class="header-actions">
+        <!-- Live System Health Badge -->
+        <div class="health-badge" id="health-badge" title="System Hardware & Index Status">
+          <span class="health-dot status-unknown" id="health-dot"></span>
+          <span class="health-text" id="health-text">Connecting...</span>
+          <div class="health-tooltip" id="health-tooltip">
+            <div class="tooltip-row"><span>Status:</span> <strong id="hp-status">Offline</strong></div>
+            <div class="tooltip-row"><span>Hardware:</span> <strong id="hp-device">Unknown</strong></div>
+            <div class="tooltip-row"><span>Vectors:</span> <strong id="hp-vectors">0</strong></div>
+            <div class="tooltip-row"><span>FAISS Dim:</span> <strong id="hp-dim">384</strong></div>
+          </div>
+        </div>
+
+        <!-- Dark/Light Theme Toggle -->
+        <button class="theme-toggle-btn" id="theme-toggle-btn" aria-label="Toggle Color Theme" title="Toggle Light/Dark Theme">
+          <i class="fa-solid fa-moon icon-dark"></i>
+          <i class="fa-solid fa-sun icon-light"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Application Body Container -->
+  <main class="app-main">
+    
+    <!-- ========================================== -->
+    <!-- VIEW 1: CHECK (PRIMARY PLAGIARISM CHECKER) -->
+    <!-- ========================================== -->
+    <section class="view-section active" id="view-check">
+      <div class="view-container">
+        
+        <!-- Input Configuration & Workspace Panel -->
+        <div class="glass-panel input-panel" id="input-panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <i class="fa-solid fa-file-signature text-accent"></i>
+              <h2>Document Ingestion & Analysis Setup</h2>
+            </div>
+            
+            <!-- Input Mode Switcher -->
+            <div class="mode-tab-group" role="tablist">
+              <button class="mode-btn active" data-mode="paste"><i class="fa-solid fa-align-left"></i> Paste Text</button>
+              <button class="mode-btn" data-mode="upload"><i class="fa-solid fa-cloud-arrow-up"></i> Upload File</button>
+              <button class="mode-btn" data-mode="both"><i class="fa-solid fa-layer-group"></i> Both</button>
+            </div>
+          </div>
+
+          <div class="panel-body">
+            <!-- Text Ingestion Field -->
+            <div class="input-group-pane" id="pane-text-input">
+              <div class="textarea-wrapper">
+                <textarea id="check-text-input" placeholder="Paste essay, research paper, article, or source text here to perform AI semantic plagiarism check..." rows="9" spellcheck="false"></textarea>
+                <div class="live-counter-bar">
+                  <div class="counter-item"><i class="fa-solid fa-font"></i> <span id="cnt-chars">0</span> chars</div>
+                  <div class="counter-item"><i class="fa-solid fa-align-center"></i> <span id="cnt-words">0</span> words</div>
+                  <div class="counter-item"><i class="fa-solid fa-paragraph"></i> <span id="cnt-sentences">0</span> sentences</div>
+                  <div class="counter-item"><i class="fa-solid fa-microchip"></i> ~<span id="cnt-tokens">0</span> tokens</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- File Upload Dropzone -->
+            <div class="input-group-pane hidden" id="pane-file-input">
+              <div class="dropzone" id="file-dropzone" tabindex="0" role="button" aria-label="Dropzone for PDF, DOCX, or TXT document upload">
+                <input type="file" id="check-file-input" accept=".txt,.pdf,.docx,.doc,.md" class="hidden-file-input">
+                <div class="dropzone-content">
+                  <div class="dropzone-icon"><i class="fa-solid fa-file-circle-plus"></i></div>
+                  <h3>Drag & Drop your document here</h3>
+                  <p class="dropzone-sub">Supports <strong>PDF, DOCX, TXT, MD</strong> up to 20MB</p>
+                  <button class="btn btn-secondary btn-sm dropzone-browse-btn" type="button"><i class="fa-solid fa-folder-open"></i> Browse Files</button>
+                </div>
+              </div>
+              <div class="file-list-preview hidden" id="file-list-preview"></div>
+            </div>
+
+            <!-- Collapsible Advanced Settings Row -->
+            <details class="advanced-settings-accordion">
+              <summary class="accordion-trigger">
+                <span><i class="fa-solid fa-sliders text-accent"></i> Advanced AI & Sensitivity Parameters</span>
+                <i class="fa-solid fa-chevron-down accordion-chevron"></i>
+              </summary>
+              <div class="accordion-content grid-settings">
+                <div class="setting-item">
+                  <label for="setting-model-type">Embedding Model Engine</label>
+                  <select id="setting-model-type" class="glass-select">
+                    <option value="sbert" selected>SBERT (all-MiniLM-L6-v2) — 384d Fast Dense</option>
+                    <option value="multilingual">XLM-RoBERTa (Cross-Lingual Multilingual)</option>
+                    <option value="baseline">Baseline TF-IDF + Rabin-Karp String Matcher</option>
+                  </select>
+                </div>
+
+                <div class="setting-item">
+                  <div class="setting-label-row">
+                    <label for="setting-threshold">Similarity Threshold</label>
+                    <span class="badge badge-accent" id="threshold-val-label">0.65 (Balanced)</span>
+                  </div>
+                  <input type="range" id="setting-threshold" min="0.30" max="0.95" step="0.05" value="0.65" class="glass-slider">
+                  <div class="slider-ticks">
+                    <span>Lenient (0.30)</span>
+                    <span>Balanced (0.65)</span>
+                    <span>Strict (0.80)</span>
+                    <span>Paranoid (0.95)</span>
+                  </div>
+                </div>
+
+                <div class="setting-item full-width-toggles">
+                  <label class="toggle-control">
+                    <input type="checkbox" id="toggle-citations" checked>
+                    <span class="toggle-slider"></span>
+                    <span class="toggle-label">Ignore explicit citations & quotes ("...")</span>
+                  </label>
+                  <label class="toggle-control">
+                    <input type="checkbox" id="toggle-references" checked>
+                    <span class="toggle-slider"></span>
+                    <span class="toggle-label">Exclude Reference / Bibliography section</span>
+                  </label>
+                  <label class="toggle-control">
+                    <input type="checkbox" id="toggle-case">
+                    <span class="toggle-slider"></span>
+                    <span class="toggle-label">Case-sensitive strict matching</span>
+                  </label>
+                </div>
+              </div>
+            </details>
+          </div>
+
+          <div class="panel-footer">
+            <div class="footer-hint">
+              <i class="fa-solid fa-shield-halved text-success"></i> Deep Learning FAISS Vector DB indexed against Academic Corpus
+            </div>
+            <button class="btn btn-primary btn-lg" id="btn-run-check" disabled>
+              <i class="fa-solid fa-bolt"></i> <span>Check for Plagiarism</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Real-Time Processing Stepper & Status Card -->
+        <div class="glass-panel processing-panel hidden" id="processing-panel" aria-live="polite">
+          <div class="progress-bar-top"><div class="progress-bar-fill" id="progress-bar-fill"></div></div>
+          <div class="processing-content">
+            <div class="stepper-header">
+              <div class="stepper-title">
+                <i class="fa-solid fa-atom fa-spin text-cyan"></i>
+                <h3>Analyzing Document Semantics...</h3>
+              </div>
+              <div class="elapsed-timer" id="elapsed-timer">00:00.0s</div>
+            </div>
+
+            <!-- Stepper Steps -->
+            <div class="stepper-track">
+              <div class="step-item" id="step-0">
+                <div class="step-icon"><i class="fa-solid fa-file-import"></i></div>
+                <div class="step-label">Extracting Text</div>
+              </div>
+              <div class="step-divider"></div>
+              <div class="step-item" id="step-1">
+                <div class="step-icon"><i class="fa-solid fa-scissors"></i></div>
+                <div class="step-label">Segmenting Sentences</div>
+              </div>
+              <div class="step-divider"></div>
+              <div class="step-item" id="step-2">
+                <div class="step-icon"><i class="fa-solid fa-brain"></i></div>
+                <div class="step-label">Transformer Embeddings</div>
+              </div>
+              <div class="step-divider"></div>
+              <div class="step-item" id="step-3">
+                <div class="step-icon"><i class="fa-solid fa-magnifying-glass-chart"></i></div>
+                <div class="step-label">FAISS Vector Search</div>
+              </div>
+              <div class="step-divider"></div>
+              <div class="step-item" id="step-4">
+                <div class="step-icon"><i class="fa-solid fa-bullseye"></i></div>
+                <div class="step-label">Attention Alignment</div>
+              </div>
+              <div class="step-divider"></div>
+              <div class="step-item" id="step-5">
+                <div class="step-icon"><i class="fa-solid fa-square-poll-vertical"></i></div>
+                <div class="step-label">Scoring & Heatmap</div>
+              </div>
+            </div>
+
+            <div class="processing-actions">
+              <button class="btn btn-danger btn-sm" id="btn-cancel-check">
+                <i class="fa-solid fa-ban"></i> Cancel Analysis
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Inline Error Banner -->
+        <div class="glass-panel error-card hidden" id="error-card">
+          <div class="error-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+          <div class="error-body">
+            <h4 id="error-title">Analysis Failed</h4>
+            <p id="error-message">An unexpected server or network error occurred.</p>
+          </div>
+          <div class="error-actions">
+            <button class="btn btn-secondary btn-sm" id="btn-copy-error"><i class="fa-solid fa-copy"></i> Copy Error</button>
+            <button class="btn btn-primary btn-sm" id="btn-retry-check"><i class="fa-solid fa-rotate-right"></i> Retry</button>
+          </div>
+        </div>
+
+        <!-- Results Dashboard Panel -->
+        <div class="results-dashboard hidden" id="results-dashboard">
+          
+          <!-- Top Hero Summary Card -->
+          <div class="glass-panel hero-summary-card">
+            <div class="donut-gauge-container">
+              <svg class="donut-gauge-svg" viewBox="0 0 160 160">
+                <circle class="gauge-bg" cx="80" cy="80" r="68"></circle>
+                <circle class="gauge-fill" id="gauge-fill-circle" cx="80" cy="80" r="68" stroke-dasharray="427.26" stroke-dashoffset="427.26"></circle>
+              </svg>
+              <div class="donut-gauge-content">
+                <span class="donut-score-num" id="gauge-score-text">0%</span>
+                <span class="donut-score-sub">Similarity</span>
+              </div>
+            </div>
+
+            <div class="hero-details">
+              <div class="risk-badge-row">
+                <span class="risk-pill" id="risk-pill-badge">Original Content</span>
+                <span class="file-name-tag" id="results-filename-tag">Document.txt</span>
+              </div>
+              <h2 id="hero-verdict-title">Mostly Original Document</h2>
+              <p class="hero-verdict-desc" id="hero-verdict-desc">The semantic transformer analysis found low contextual overlap with indexed academic literature.</p>
+              
+              <!-- Stat Tiles Grid -->
+              <div class="stat-tiles-grid">
+                <div class="stat-tile">
+                  <div class="stat-val" id="stat-total-sentences">0</div>
+                  <div class="stat-lbl">Sentences</div>
+                </div>
+                <div class="stat-tile">
+                  <div class="stat-val text-high" id="stat-flagged-sentences">0</div>
+                  <div class="stat-lbl">Matched</div>
+                </div>
+                <div class="stat-tile">
+                  <div class="stat-val" id="stat-sources-count">0</div>
+                  <div class="stat-lbl">Sources</div>
+                </div>
+                <div class="stat-tile">
+                  <div class="stat-val" id="stat-avg-similarity">0%</div>
+                  <div class="stat-lbl">Avg Sim</div>
+                </div>
+                <div class="stat-tile">
+                  <div class="stat-val" id="stat-latency">0ms</div>
+                  <div class="stat-lbl">Latency</div>
+                </div>
+                <div class="stat-tile">
+                  <div class="stat-val" id="stat-model-name">SBERT</div>
+                  <div class="stat-lbl">Engine</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Quick Export & Re-check Actions Bar -->
+            <div class="results-actions-top">
+              <button class="btn btn-secondary btn-sm" id="btn-export-pdf" title="Export PDF Report">
+                <i class="fa-solid fa-file-pdf text-danger"></i> PDF Report
+              </button>
+              <button class="btn btn-secondary btn-sm" id="btn-export-json" title="Download Raw JSON Results">
+                <i class="fa-solid fa-code text-cyan"></i> Export JSON
+              </button>
+              <button class="btn btn-secondary btn-sm" id="btn-copy-summary" title="Copy Text Summary to Clipboard">
+                <i class="fa-solid fa-copy"></i> Summary
+              </button>
+              <button class="btn btn-secondary btn-sm" id="btn-recheck" title="Re-check with updated parameters">
+                <i class="fa-solid fa-rotate-right"></i> Re-check
+              </button>
+              <button class="btn btn-primary btn-sm" id="btn-new-check">
+                <i class="fa-solid fa-plus"></i> New Check
+              </button>
+            </div>
+          </div>
+
+          <!-- Main Results View Navigation Bar -->
+          <div class="results-view-toolbar">
+            <div class="view-switch-group">
+              <button class="view-switch-btn active" data-results-view="highlighted">
+                <i class="fa-solid fa-highlighter"></i> Highlighted Text
+              </button>
+              <button class="view-switch-btn" data-results-view="sidebyside">
+                <i class="fa-solid fa-columns"></i> Side-by-Side
+              </button>
+              <button class="view-switch-btn" data-results-view="sources">
+                <i class="fa-solid fa-list-check"></i> Source List (<span id="source-list-badge-cnt">0</span>)
+              </button>
+            </div>
+
+            <!-- Filter Controls for Highlighted View -->
+            <div class="highlight-filters-bar" id="highlight-filters-bar">
+              <div class="filter-checkboxes">
+                <label class="filter-chip chip-high"><input type="checkbox" id="flt-high" checked> High Risk</label>
+                <label class="filter-chip chip-medium"><input type="checkbox" id="flt-medium" checked> Paraphrased</label>
+                <label class="filter-chip chip-clean"><input type="checkbox" id="flt-clean"> Original</label>
+              </div>
+              <div class="search-box-wrap">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="doc-search-input" placeholder="Search document text..." class="glass-input-sm">
+              </div>
+            </div>
+          </div>
+
+          <!-- Results Body Container (Holds 3 Alternate Views) -->
+          <div class="results-body-area">
+            
+            <!-- RESULT VIEW A: HIGHLIGHTED TEXT WITH DENSITY MINIMAP -->
+            <div class="results-pane active" id="pane-highlighted">
+              <div class="highlighted-layout">
+                <div class="glass-panel text-display-card">
+                  <div class="document-text-container" id="document-text-container">
+                    <!-- Dynamic sentence spans rendered here -->
+                  </div>
+                </div>
+
+                <!-- Match Density Minimap -->
+                <div class="minimap-sidebar" id="minimap-sidebar" title="Document Similarity Minimap">
+                  <div class="minimap-track" id="minimap-track"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- RESULT VIEW B: SIDE-BY-SIDE SYNCHRONIZED COMPARISON -->
+            <div class="results-pane hidden" id="pane-sidebyside">
+              <div class="sidebyside-toolbar">
+                <div class="match-navigator">
+                  <button class="btn btn-secondary btn-sm" id="btn-prev-match"><i class="fa-solid fa-chevron-left"></i></button>
+                  <span class="match-step-text" id="match-step-indicator">Match 0 of 0</span>
+                  <button class="btn btn-secondary btn-sm" id="btn-next-match"><i class="fa-solid fa-chevron-right"></i></button>
+                </div>
+                <div class="sbs-hint"><i class="fa-solid fa-keyboard"></i> Use &larr; &rarr; arrow keys to navigate matched passages</div>
+              </div>
+
+              <div class="sidebyside-columns">
+                <div class="glass-panel sbs-column">
+                  <div class="sbs-col-header"><i class="fa-solid fa-file-lines text-cyan"></i> Your Input Document</div>
+                  <div class="sbs-col-content" id="sbs-left-content"></div>
+                </div>
+                <div class="sbs-column-divider">
+                  <i class="fa-solid fa-arrows-left-right"></i>
+                </div>
+                <div class="glass-panel sbs-column">
+                  <div class="sbs-col-header"><i class="fa-solid fa-database text-accent"></i> Matched Corpus Source</div>
+                  <div class="sbs-col-content" id="sbs-right-content"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- RESULT VIEW C: SORTABLE SOURCE LIST TABLE -->
+            <div class="results-pane hidden" id="pane-sources">
+              <div class="glass-panel source-table-card">
+                <div class="table-toolbar">
+                  <div class="search-box-wrap">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="source-search-input" placeholder="Filter sources by title or author..." class="glass-input-sm">
+                  </div>
+                  <button class="btn btn-secondary btn-sm" id="btn-export-csv"><i class="fa-solid fa-file-csv"></i> Export CSV</button>
+                </div>
+
+                <div class="table-responsive">
+                  <table class="glass-table" id="sources-table">
+                    <thead>
+                      <tr>
+                        <th data-sort="title">Document Title <i class="fa-solid fa-sort"></i></th>
+                        <th data-sort="author">Author <i class="fa-solid fa-sort"></i></th>
+                        <th data-sort="category">Category <i class="fa-solid fa-sort"></i></th>
+                        <th data-sort="count">Matches <i class="fa-solid fa-sort"></i></th>
+                        <th data-sort="similarity">Max Similarity <i class="fa-solid fa-sort"></i></th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="sources-table-body">
+                      <!-- Source rows rendered dynamically -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+        
+      </div>
+    </section>
+
+
+    <!-- ========================================== -->
+    <!-- VIEW 2: COMPARE (PAIRWISE COMPARATOR)      -->
+    <!-- ========================================== -->
+    <section class="view-section hidden" id="view-compare">
+      <div class="view-container">
+        <div class="view-page-header">
+          <div class="page-title-group">
+            <h2><i class="fa-solid fa-code-compare text-accent"></i> Pairwise Document Comparator</h2>
+            <p>Direct side-by-side semantic embedding comparison between two documents or text passages.</p>
+          </div>
+          <button class="btn btn-secondary btn-sm" id="btn-load-sample-pair"><i class="fa-solid fa-vial"></i> Load Sample Documents</button>
+        </div>
+
+        <div class="compare-grid">
+          <!-- Document Pane A -->
+          <div class="glass-panel editor-pane">
+            <div class="pane-title-bar">
+              <span class="pane-badge badge-a">Document A</span>
+              <button class="btn-text" id="btn-clear-a"><i class="fa-solid fa-trash"></i> Clear</button>
+            </div>
+            <textarea id="compare-text-a" placeholder="Paste Document A or drag file..." rows="12"></textarea>
+            <div class="pane-footer-bar">
+              <span id="cnt-a-stats">0 chars · 0 words</span>
+            </div>
+          </div>
+
+          <!-- Center Swap Controls -->
+          <div class="compare-center-actions">
+            <button class="swap-btn" id="btn-swap-pair" title="Swap Document A and B"><i class="fa-solid fa-right-left"></i></button>
+          </div>
+
+          <!-- Document Pane B -->
+          <div class="glass-panel editor-pane">
+            <div class="pane-title-bar">
+              <span class="pane-badge badge-b">Document B</span>
+              <button class="btn-text" id="btn-clear-b"><i class="fa-solid fa-trash"></i> Clear</button>
+            </div>
+            <textarea id="compare-text-b" placeholder="Paste Document B or drag file..." rows="12"></textarea>
+            <div class="pane-footer-bar">
+              <span id="cnt-b-stats">0 chars · 0 words</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="compare-cta-row">
+          <button class="btn btn-primary btn-lg" id="btn-run-compare">
+            <i class="fa-solid fa-scale-balanced"></i> Run Pairwise Semantic Comparison
+          </button>
+        </div>
+
+        <!-- Pair Compare Results -->
+        <div class="compare-results-area hidden" id="compare-results-area">
+          <div class="glass-panel compare-results-card">
+            <h3>Comparison Analytics</h3>
+            <div class="compare-metrics-row">
+              <div class="metric-card-lg">
+                <span class="metric-lbl">SBERT Semantic Similarity</span>
+                <span class="metric-val text-accent" id="cmp-sbert-val">0.0%</span>
+              </div>
+              <div class="metric-card-lg">
+                <span class="metric-lbl">TF-IDF Baseline Match</span>
+                <span class="metric-val" id="cmp-baseline-val">0.0%</span>
+              </div>
+              <div class="metric-card-lg">
+                <span class="metric-lbl">Jaccard N-Gram Score</span>
+                <span class="metric-val" id="cmp-jaccard-val">0.0%</span>
+              </div>
+            </div>
+
+            <!-- Comparison Chart Container -->
+            <div class="chart-box-wrap">
+              <canvas id="chart-compare-metrics" height="220"></canvas>
+            </div>
+
+            <!-- Sentence Alignment Breakdown -->
+            <h4 class="sub-heading">Cross-Document Sentence Alignments</h4>
+            <div class="alignments-list" id="compare-alignments-list"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- ========================================== -->
+    <!-- VIEW 3: CORPUS (REFERENCE INDEX MANAGER)   -->
+    <!-- ========================================== -->
+    <section class="view-section hidden" id="view-corpus">
+      <div class="view-container">
+        <div class="view-page-header">
+          <div class="page-title-group">
+            <h2><i class="fa-solid fa-database text-accent"></i> Reference Corpus Vector Database</h2>
+            <p>Manage indexed academic literature, articles, and documents stored in the FAISS vector database.</p>
+          </div>
+        </div>
+
+        <!-- Corpus Stat Header Cards -->
+        <div class="corpus-stats-grid">
+          <div class="glass-panel corpus-stat-card">
+            <i class="fa-solid fa-folder-open icon"></i>
+            <div class="val" id="cs-total-docs">0</div>
+            <div class="lbl">Total Documents</div>
+          </div>
+          <div class="glass-panel corpus-stat-card">
+            <i class="fa-solid fa-cubes icon"></i>
+            <div class="val" id="cs-total-vectors">0</div>
+            <div class="lbl">Vector Chunks</div>
+          </div>
+          <div class="glass-panel corpus-stat-card">
+            <i class="fa-solid fa-ruler-combined icon"></i>
+            <div class="val" id="cs-vector-dim">384</div>
+            <div class="lbl">Embedding Dim</div>
+          </div>
+          <div class="glass-panel corpus-stat-card">
+            <i class="fa-solid fa-clock icon"></i>
+            <div class="val" id="cs-last-updated">Just now</div>
+            <div class="lbl">Index Status</div>
+          </div>
+        </div>
+
+        <!-- Add Document to Corpus Panel -->
+        <div class="glass-panel corpus-add-panel">
+          <div class="panel-header">
+            <h3><i class="fa-solid fa-plus-circle text-cyan"></i> Index New Reference Document</h3>
+          </div>
+          <form id="form-corpus-add" class="corpus-form">
+            <div class="form-row-3">
+              <div class="form-group">
+                <label for="corpus-add-title">Document Title *</label>
+                <input type="text" id="corpus-add-title" class="glass-input" placeholder="e.g., Attention Is All You Need" required>
+              </div>
+              <div class="form-group">
+                <label for="corpus-add-author">Author / Source</label>
+                <input type="text" id="corpus-add-author" class="glass-input" placeholder="e.g., Vaswani et al.">
+              </div>
+              <div class="form-group">
+                <label for="corpus-add-category">Category</label>
+                <select id="corpus-add-category" class="glass-select">
+                  <option value="Computer Science">Computer Science</option>
+                  <option value="Academic Research">Academic Research</option>
+                  <option value="Biology & Medicine">Biology & Medicine</option>
+                  <option value="General Literature">General Literature</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="corpus-add-text">Document Content *</label>
+              <textarea id="corpus-add-text" rows="5" class="glass-textarea" placeholder="Paste complete document text here..." required></textarea>
+            </div>
+
+            <div class="form-actions-end">
+              <button class="btn btn-primary" type="submit" id="btn-corpus-submit">
+                <i class="fa-solid fa-database"></i> Index into FAISS Vector Database
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Corpus Documents Table -->
+        <div class="glass-panel corpus-table-panel">
+          <div class="table-toolbar">
+            <div class="search-box-wrap">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input type="text" id="corpus-search-input" placeholder="Search indexed corpus..." class="glass-input-sm">
+            </div>
+            <button class="btn btn-secondary btn-sm" id="btn-refresh-corpus"><i class="fa-solid fa-rotate"></i> Refresh</button>
+          </div>
+
+          <div class="table-responsive">
+            <table class="glass-table">
+              <thead>
+                <tr>
+                  <th>Doc ID</th>
+                  <th>Title</th>
+                  <th>Author</th>
+                  <th>Category</th>
+                  <th>Vector Chunks</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="corpus-table-body">
+                <!-- Dynamically loaded -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- ========================================== -->
+    <!-- VIEW 4: BENCHMARKS (MODEL EVALUATION)     -->
+    <!-- ========================================== -->
+    <section class="view-section hidden" id="view-benchmarks">
+      <div class="view-container">
+        <div class="view-page-header">
+          <div class="page-title-group">
+            <h2><i class="fa-solid fa-chart-column text-accent"></i> Model Evaluation & Benchmarks</h2>
+            <p>Rigorous comparative evaluation of TF-IDF Baseline vs Deep Learning SBERT Transformer Engine.</p>
+          </div>
+          <button class="btn btn-primary" id="btn-run-benchmark">
+            <i class="fa-solid fa-play"></i> Run Evaluation Benchmark
+          </button>
+        </div>
+
+        <!-- Metric KPI Cards -->
+        <div class="benchmark-kpi-grid">
+          <div class="glass-panel kpi-card">
+            <div class="kpi-title">Accuracy</div>
+            <div class="kpi-val" id="bm-acc-val">92.5%</div>
+            <div class="kpi-delta text-success" id="bm-acc-delta">+24.0% vs Baseline</div>
+          </div>
+          <div class="glass-panel kpi-card">
+            <div class="kpi-title">Precision</div>
+            <div class="kpi-val" id="bm-prec-val">90.1%</div>
+            <div class="kpi-delta text-success" id="bm-prec-delta">+18.5% vs Baseline</div>
+          </div>
+          <div class="glass-panel kpi-card">
+            <div class="kpi-title">Recall</div>
+            <div class="kpi-val" id="bm-rec-val">95.0%</div>
+            <div class="kpi-delta text-success" id="bm-rec-delta">+28.2% vs Baseline</div>
+          </div>
+          <div class="glass-panel kpi-card">
+            <div class="kpi-title">F1-Score</div>
+            <div class="kpi-val" id="bm-f1-val">92.5%</div>
+            <div class="kpi-delta text-success" id="bm-f1-delta">+23.3% vs Baseline</div>
+          </div>
+          <div class="glass-panel kpi-card">
+            <div class="kpi-title">Pearson Corr.</div>
+            <div class="kpi-val" id="bm-pearson-val">0.89</div>
+            <div class="kpi-delta text-success" id="bm-pearson-delta">+0.34 vs Baseline</div>
+          </div>
+          <div class="glass-panel kpi-card">
+            <div class="kpi-title">Avg Latency</div>
+            <div class="kpi-val" id="bm-latency-val">42ms</div>
+            <div class="kpi-delta text-warning" id="bm-latency-delta">vs 3ms Baseline</div>
+          </div>
+        </div>
+
+        <!-- Benchmark Charts Grid -->
+        <div class="benchmark-charts-grid">
+          <div class="glass-panel chart-card">
+            <h3>Metric Comparison (SBERT vs Baseline)</h3>
+            <div class="chart-canvas-wrap">
+              <canvas id="chart-bm-bar"></canvas>
+            </div>
+          </div>
+          <div class="glass-panel chart-card">
+            <h3>Model Radar Analysis</h3>
+            <div class="chart-canvas-wrap">
+              <canvas id="chart-bm-radar"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Detailed Evaluation Pair Table -->
+        <div class="glass-panel benchmark-table-card">
+          <h3>Benchmark Test Dataset Pair Breakdown</h3>
+          <div class="table-responsive">
+            <table class="glass-table" id="bm-dataset-table">
+              <thead>
+                <tr>
+                  <th>Pair ID</th>
+                  <th>Target Label</th>
+                  <th>Baseline Score</th>
+                  <th>SBERT Score</th>
+                  <th>Text Passage Snippet</th>
+                </tr>
+              </thead>
+              <tbody id="bm-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+
+    <!-- ========================================== -->
+    <!-- VIEW 5: TRAINING (SIAMESE SIMULATOR)       -->
+    <!-- ========================================== -->
+    <section class="view-section hidden" id="view-training">
+      <div class="view-container">
+        <div class="view-page-header">
+          <div class="page-title-group">
+            <h2><i class="fa-solid fa-network-wired text-accent"></i> Siamese Network Fine-Tuning Simulator</h2>
+            <p>Simulate triplet & contrastive loss fine-tuning of sentence transformer embeddings.</p>
+          </div>
+        </div>
+
+        <!-- Interactive Architecture Diagram -->
+        <div class="glass-panel architecture-card">
+          <h3>Siamese Contrastive Architecture</h3>
+          <div class="arch-svg-container">
+            <svg class="arch-svg" viewBox="0 0 800 160">
+              <!-- Flow Lines -->
+              <path d="M 120 40 L 220 40" class="arch-line" />
+              <path d="M 120 120 L 220 120" class="arch-line" />
+              <path d="M 340 40 L 440 40" class="arch-line" />
+              <path d="M 340 120 L 440 120" class="arch-line" />
+              <path d="M 540 40 L 620 80" class="arch-line" />
+              <path d="M 540 120 L 620 80" class="arch-line" />
+              <path d="M 700 80 L 760 80" class="arch-line" />
+
+              <!-- Nodes -->
+              <g class="arch-node" data-tip="Input Sentence Pair (A, B)">
+                <rect x="20" y="20" width="100" height="40" rx="8" class="arch-rect" />
+                <text x="70" y="45" class="arch-text">Sentence A</text>
+                <rect x="20" y="100" width="100" height="40" rx="8" class="arch-rect" />
+                <text x="70" y="125" class="arch-text">Sentence B</text>
+              </g>
+
+              <g class="arch-node" data-tip="Shared Weight SBERT Transformer Encoder">
+                <rect x="220" y="20" width="120" height="40" rx="8" class="arch-rect highlight" />
+                <text x="280" y="45" class="arch-text">Transformer A</text>
+                <rect x="220" y="100" width="120" height="40" rx="8" class="arch-rect highlight" />
+                <text x="280" y="125" class="arch-text">Transformer B</text>
+              </g>
+
+              <g class="arch-node" data-tip="Mean Pooling Layer to produce 384d vectors">
+                <rect x="440" y="20" width="100" height="40" rx="8" class="arch-rect" />
+                <text x="490" y="45" class="arch-text">Vector u</text>
+                <rect x="440" y="100" width="100" height="40" rx="8" class="arch-rect" />
+                <text x="490" y="125" class="arch-text">Vector v</text>
+              </g>
+
+              <g class="arch-node" data-tip="Cosine Distance Computation |u - v|">
+                <circle cx="660" cy="80" r="35" class="arch-circle" />
+                <text x="660" y="85" class="arch-text">Cosine Sim</text>
+              </g>
+
+              <g class="arch-node" data-tip="Contrastive / Triplet Loss Optimizer">
+                <rect x="730" y="60" width="60" height="40" rx="8" class="arch-rect active" />
+                <text x="760" y="85" class="arch-text">Loss</text>
+              </g>
+            </svg>
+          </div>
+        </div>
+
+        <div class="training-grid">
+          <!-- Training Parameters Form -->
+          <div class="glass-panel train-form-card">
+            <h3>Hyperparameters</h3>
+            <div class="form-group">
+              <label for="train-epochs">Epochs: <strong id="lbl-train-epochs">10</strong></label>
+              <input type="range" id="train-epochs" min="1" max="50" value="10" class="glass-slider">
+            </div>
+
+            <div class="form-group">
+              <label for="train-lr">Learning Rate: <strong id="lbl-train-lr">2e-5</strong></label>
+              <input type="range" id="train-lr" min="1" max="5" step="1" value="2" class="glass-slider">
+            </div>
+
+            <div class="form-group">
+              <label for="train-loss">Loss Function</label>
+              <select id="train-loss" class="glass-select">
+                <option value="contrastive">Contrastive Loss (margin=1.0)</option>
+                <option value="triplet">Triplet Margin Loss</option>
+                <option value="cosine">Multiple Negatives Ranking</option>
+              </select>
+            </div>
+
+            <div class="form-actions-column">
+              <button class="btn btn-primary" id="btn-start-train"><i class="fa-solid fa-play"></i> Start Training</button>
+              <button class="btn btn-secondary hidden" id="btn-pause-train"><i class="fa-solid fa-pause"></i> Pause</button>
+              <button class="btn btn-danger hidden" id="btn-stop-train"><i class="fa-solid fa-stop"></i> Stop</button>
+            </div>
+          </div>
+
+          <!-- Training Execution & Chart Area -->
+          <div class="glass-panel train-chart-card">
+            <div class="train-header-status">
+              <div class="status-indicator">
+                <span class="status-dot-pulse" id="train-status-dot"></span>
+                <span id="train-status-text">Idle</span>
+              </div>
+              <div class="epoch-readout">Epoch <strong id="readout-epoch">0</strong>/10</div>
+            </div>
+
+            <div class="chart-canvas-wrap">
+              <canvas id="chart-training-loss" height="220"></canvas>
+            </div>
+
+            <!-- Terminal Log Console -->
+            <div class="terminal-console" id="train-console">
+              <div class="log-line text-muted">[System] Ready to start fine-tuning simulation.</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+
+    <!-- ========================================== -->
+    <!-- VIEW 6: HISTORY                            -->
+    <!-- ========================================== -->
+    <section class="view-section hidden" id="view-history">
+      <div class="view-container">
+        <div class="view-page-header">
+          <div class="page-title-group">
+            <h2><i class="fa-solid fa-clock-rotate-left text-accent"></i> Plagiarism Check History</h2>
+            <p>Locally cached analysis reports saved in browser storage.</p>
+          </div>
+          <button class="btn btn-danger btn-sm" id="btn-clear-history"><i class="fa-solid fa-trash"></i> Clear History</button>
+        </div>
+
+        <div class="glass-panel history-panel">
+          <div class="table-toolbar">
+            <div class="search-box-wrap">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input type="text" id="history-search-input" placeholder="Search history..." class="glass-input-sm">
+            </div>
+          </div>
+
+          <div class="history-list" id="history-list-container">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- ========================================== -->
+    <!-- VIEW 7: SETTINGS                           -->
+    <!-- ========================================== -->
+    <section class="view-section hidden" id="view-settings">
+      <div class="view-container">
+        <div class="view-page-header">
+          <div class="page-title-group">
+            <h2><i class="fa-solid fa-sliders text-accent"></i> Global Application Settings</h2>
+            <p>Configure API base URLs, default thresholds, and local storage preferences.</p>
+          </div>
+        </div>
+
+        <div class="settings-grid">
+          <div class="glass-panel settings-card">
+            <h3><i class="fa-solid fa-network-wired text-cyan"></i> Backend API Connection</h3>
+            <div class="form-group">
+              <label for="setting-api-url">Backend Server API Base URL</label>
+              <div class="input-with-btn">
+                <input type="text" id="setting-api-url" class="glass-input" value="http://127.0.0.1:8000">
+                <button class="btn btn-secondary" id="btn-test-api-conn"><i class="fa-solid fa-plug"></i> Test Connection</button>
+              </div>
+              <small class="form-text">Default backend URL when serving locally from FastAPI.</small>
+            </div>
+          </div>
+
+          <div class="glass-panel settings-card">
+            <h3><i class="fa-solid fa-gear text-accent"></i> Default Detection Parameters</h3>
+            <div class="form-group">
+              <label for="setting-def-model">Default Embedding Model</label>
+              <select id="setting-def-model" class="glass-select">
+                <option value="sbert">SBERT (all-MiniLM-L6-v2)</option>
+                <option value="multilingual">XLM-RoBERTa (Multilingual)</option>
+                <option value="baseline">Baseline TF-IDF</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="setting-def-threshold">Default Similarity Threshold</label>
+              <input type="number" id="setting-def-threshold" min="0.3" max="0.95" step="0.05" value="0.65" class="glass-input">
+            </div>
+          </div>
+
+          <div class="glass-panel settings-card danger-card">
+            <h3><i class="fa-solid fa-triangle-exclamation text-danger"></i> Cache & Storage Danger Zone</h3>
+            <p>Reset all locally cached history, indexed corpus items stored in browser, and user preferences.</p>
+            <button class="btn btn-danger" id="btn-reset-all-storage"><i class="fa-solid fa-triangle-exclamation"></i> Clear All Storage & Cache</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ========================================== -->
+  <!-- SENTENCE INSPECTOR SLIDE-OVER DRAWER       -->
+  <!-- ========================================== -->
+  <div class="inspector-backdrop hidden" id="inspector-backdrop"></div>
+  <aside class="inspector-drawer hidden" id="inspector-drawer" aria-label="Sentence Match Inspector">
+    <div class="drawer-header">
+      <div class="drawer-title">
+        <i class="fa-solid fa-magnifying-glass-chart text-accent"></i>
+        <h3>Sentence Inspector</h3>
+      </div>
+      <button class="close-btn" id="btn-close-inspector" aria-label="Close Inspector"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <div class="drawer-body">
+      <!-- Sentence Comparison Box -->
+      <div class="inspect-block">
+        <div class="block-label">Your Document Sentence #<span id="insp-sentence-idx">0</span></div>
+        <div class="sentence-box input-box" id="insp-input-sentence"></div>
+        <button class="btn-text-sm" id="btn-copy-input-sentence"><i class="fa-solid fa-copy"></i> Copy Sentence</button>
+      </div>
+
+      <div class="inspect-block">
+        <div class="block-label">Best Matched Corpus Sentence</div>
+        <div class="sentence-box source-box" id="insp-source-sentence"></div>
+        <div class="source-doc-tag" id="insp-source-title">Document Title</div>
+      </div>
+
+      <!-- Similarity Score Bar -->
+      <div class="inspect-block">
+        <div class="sim-score-header">
+          <span>Match Confidence</span>
+          <strong id="insp-sim-val">0%</strong>
+        </div>
+        <div class="progress-bar-sm"><div class="progress-fill-sm" id="insp-sim-fill"></div></div>
+      </div>
+
+      <!-- Word-Level Token Overlap Chips -->
+      <div class="inspect-block">
+        <div class="block-label">Word-Level Token Overlap & Attention</div>
+        <div class="token-chips-container" id="insp-token-chips"></div>
+      </div>
+
+      <!-- Score Metadata Row -->
+      <div class="inspect-block metadata-block">
+        <div class="meta-row"><span>Paraphrase Type:</span> <strong id="insp-para-type">Semantic Paraphrase</strong></div>
+        <div class="meta-row"><span>Cosine Sim:</span> <strong id="insp-cosine-score">0.0000</strong></div>
+        <div class="meta-row"><span>Severity:</span> <strong id="insp-severity">High</strong></div>
+      </div>
+
+      <!-- Actions Bar -->
+      <div class="drawer-actions">
+        <button class="btn btn-secondary btn-sm" id="btn-mark-citation"><i class="fa-solid fa-quote-right"></i> Mark as Citation</button>
+        <button class="btn btn-secondary btn-sm" id="btn-exclude-sentence"><i class="fa-solid fa-eye-slash"></i> Exclude from Score</button>
+        <button class="btn btn-secondary btn-sm" id="btn-copy-citation"><i class="fa-solid fa-copy"></i> Copy Citation</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- DELETE CONFIRMATION MODAL -->
+  <div class="modal-backdrop hidden" id="delete-modal-backdrop">
+    <div class="glass-panel modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-header">
+        <h3 id="modal-title"><i class="fa-solid fa-triangle-exclamation text-danger"></i> Confirm Document Deletion</h3>
+        <button class="close-btn" id="btn-close-modal"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to remove <strong id="del-doc-title">Document</strong> from the vector database?</p>
+        <p class="text-sm text-muted">This will delete <span id="del-doc-chunks">0</span> vector embeddings from FAISS.</p>
+        <div class="form-group hidden" id="del-confirm-type-group">
+          <label>Type document title to confirm:</label>
+          <input type="text" id="del-confirm-input" class="glass-input" placeholder="Type document title here">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-modal-cancel">Cancel</button>
+        <button class="btn btn-danger" id="btn-modal-confirm">Delete Document</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STACKED TOAST CONTAINER -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Main ES Module Application Script Entrypoint -->
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
